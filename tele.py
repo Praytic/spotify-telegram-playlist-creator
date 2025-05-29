@@ -1,33 +1,38 @@
-import sys
+import json
+import os
 
 from colorama import init
 from telethon.sync import TelegramClient
 from telethon.tl.types import DocumentAttributeAudio
-from termcolor import cprint
+from dotenv import load_dotenv
 
 init()
+load_dotenv()
 
-args = sys.argv[1:]
-api_id = args[0]
-api_hash = args[1]
-name = 'Praytic Telegram Client'
-chat = args[2]
+api_id = os.environ['TELEGRAM_API_ID']
+api_hash = os.environ['TELEGRAM_API_HASH']
+name = os.environ['BOT_NAME']
+chat = os.environ['TELEGRAM_CHAT_ID']
 songs = []
-performer = 'artist'
-title = 'track'
-test = 0
-broken_songs = []
-playlist_name = 'Счастье'
 
-print_red_onwhite = lambda x: cprint(x, 'red', 'on_white')
-print_green_onwhite = lambda x: cprint(x, 'green', 'on_white')
-print_red = lambda x: cprint(x, 'red')
+TELEGRAM_CACHE = 'tele.json'
+
+if os.path.exists(TELEGRAM_CACHE):
+    with open(TELEGRAM_CACHE, 'r', encoding="utf-8") as f:
+        songs = [tuple(item) for item in json.load(f)]
+else:
+    songs = []
 
 with TelegramClient(name, api_id, api_hash) as client:
+    print(f"Extracting tracks from Telegram chat with ID [{chat}]")
     for message in client.iter_messages(int(chat)):
         media = message.media
         if media:
             if hasattr(media, 'document'):
                 attributes = media.document.attributes[0]
                 if isinstance(attributes, DocumentAttributeAudio):
-                    songs.append((attributes.title, attributes.performer))
+                    song = (attributes.title, attributes.performer)
+                    if song not in songs:
+                        songs.append(song)
+    with open(TELEGRAM_CACHE, 'w', encoding="utf-8") as f:
+        json.dump(songs, f, ensure_ascii=False)

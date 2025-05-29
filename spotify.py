@@ -1,51 +1,83 @@
-from urllib.parse import quote
-
 import spotipy
-from dotenv import load_dotenv
+import json
+import tele
+import os
 from spotipy.oauth2 import SpotifyOAuth
 
-import tele
-
-load_dotenv()
+from tele import TELEGRAM_CACHE
 
 scope = 'playlist-modify-public'
-username = 'zxop4ta6nk1bm47vu5pewdk67'
+username = os.environ['USERNAME']
+playlist_id = os.environ['PLAYLIST_ID']
 
 auth_manager=SpotifyOAuth(scope=scope)
 spotify = spotipy.Spotify(auth_manager=auth_manager)
 
 unfound = []
-
-def user_playlist_get_or_create(username, name):
-    print("Getting user [{0}] playlist with name [{1}].".format(username, name))
-    all_playlists = spotify.user_playlists(username)
-    for playlist in all_playlists['items']:
-        if playlist['name'] == name:
-            return playlist['id']
-    return spotify.user_playlist_create(username, name)['id']
-
+SPOTIFY_CACHE = "spotify.json"
 
 if auth_manager:
-    playlist_id = user_playlist_get_or_create(username, tele.playlist_name)
     tracks = []
-    for artist, song in tele.songs:
-        print(f"Searching for song [{song}] from artist [{artist}].")
-        results = spotify.search(q=quote(f"track:{song} artist:{artist}"), type="track", limit=1)['tracks']['items']
-        if len(results) > 0:
-            first_result = results[0]
-            uri = first_result['uri']
-            tracks.append(first_result['uri'])
-            print("Successfully got song [{0}].".format(song))
-        else:
-            unfound.append(song)
-            print("Failed to get song [{0}].".format(song))
-            tele.print_red("Failed to get song %s from spotify " %song)
+    tracks_in_playlist = []
+    tracks_found = 0
+    tracks_missing = 0
 
-    print(f"Finished search for songs from telegram export. Stats: found {len(tracks)} tracks, not found {len(unfound)} tracks. Creating Spotify playlist.")
+    playlist_name = spotify.playlist(playlist_id, fields='name')['name']
+    total_items_in_playlist, page_size = spotify.playlist_items(playlist_id, fields='total,limit').values()
+
+    print(f"Total items in playlist [{playlist_name}]: {total_items_in_playlist}.")
+
+    if total_items_in_playlist > 0:
+        print(f"Getting the list of track URIs by batches of [{page_size}].")
+
+        paginate = 0
+        while paginate < total_items_in_playlist:
+            next_page = paginate + page_size
+            items_in_playlist = spotify.playlist_items(playlist_id, fields='items(track(uri))', limit=page_size, offset=paginate)['items']
+            for track in items_in_playlist:
+                tracks_in_playlist.append(track.uri)
+
+        print(f"Got [{len(tracks_in_playlist)}] track URIs from playlist [{playlist_name}].")
+
+    if os.path.exists(SPOTIFY_CACHE):
+        print(f"Spotify cache exists, getting track URIs from it.")
+
+        with open(SPOTIFY_CACHE, 'r', encoding="utf-8") as f:
+            tracks = json.load(f)
+
+        print(f"Got [{len(tracks)}] tracks from cache.")
+    else:
+        print(f"Searching among [{len(tele.songs)}] tracks that were extracted from Telegram and don't exist in Spotify playlist.")
+
+        for song, artist in tele.songs:
+            query = f"track:{song} artist:{artist}"
+            results = spotify.search(q=query, type="track", market="US", limit=1)['tracks']['items']
+            if len(results) > 0:
+                first_result = results[0]
+                uri = first_result['uri']
+                if uri not in tracks_in_playlist:
+                    tracks.append(uri)
+                    tracks_found += 1
+            else:
+                tracks_missing += 1
+
+        print(f"Finished searching for songs from Telegram export. "
+              f"Stats: found {tracks_found} tracks, missing - {tracks_missing}, new to playlist - {len(tracks)}.")
+
+
+    with open(SPOTIFY_CACHE, 'w', encoding="utf-8") as f:
+        json.dump(tracks, f, ensure_ascii=False)
+
+    print(f"Updating Spotify playlist with {len(tracks)} tracks.")
+
     paginate = 0
     while paginate < len(tracks):
-        next_page = paginate + 100
+        next_page = paginate + 50
         paged_tracks = tracks[paginate:next_page]
         paginate = next_page
-        print("Add [{0}] songs to playlist [{1}].".format(len(paged_tracks), playlist_id))
+        print(f"Adding [{len(paged_tracks)}] tracks to playlist [{playlist_name}].")
         spotify.playlist_add_items(playlist_id, paged_tracks)
+
+    print(f"Clearing local Spotify and Telegram cache.")
+    os.remove(SPOTIFY_CACHE)
+    os.remove(TELEGRAM_CACHE)
