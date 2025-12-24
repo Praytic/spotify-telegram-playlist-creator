@@ -45,12 +45,25 @@ with TelegramClient(name, api_id, api_hash) as client:
                 if isinstance(attributes, DocumentAttributeAudio):
                     title = attributes.title if attributes.title else ""
                     performer = attributes.performer if attributes.performer else ""
+
+                    # If performer is empty but title contains " - ", try to split it
+                    if not performer and title and ' - ' in title:
+                        parts = title.split(' - ', 1)
+                        if len(parts) == 2:
+                            performer = parts[0].strip()
+                            title = parts[1].strip()
+                            print(f"    Parsed from title: {title} - {performer}")
+
                     if not title or not performer:
+                        print(f"    Skipped: missing metadata - title: '{title}', performer: '{performer}'")
                         continue
                     song = (title, performer)
                     if song not in songs:
                         songs.append(song)
                         count += 1
+                        print(f"    ✓ Extracted: {title} - {performer}")
+                    else:
+                        print(f"    Duplicate: {title} - {performer}")
 
         if batch_count > 0:
             print(f"  Processed batch: {batch_count} messages, {count} unique tracks total so far...")
