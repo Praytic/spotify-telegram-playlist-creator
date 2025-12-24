@@ -3,7 +3,7 @@ import os
 
 from colorama import init
 from telethon.sync import TelegramClient
-from telethon.tl.types import DocumentAttributeAudio
+from telethon.tl.types import DocumentAttributeAudio, InputMessagesFilterMusic
 from dotenv import load_dotenv
 
 init()
@@ -25,14 +25,13 @@ else:
 
 with TelegramClient(name, api_id, api_hash) as client:
     print(f"Extracting tracks from Telegram chat with ID [{chat}]")
-    for message in client.iter_messages(int(chat)):
+    for message in client.iter_messages(int(chat), filter=InputMessagesFilterMusic):
         media = message.media
-        if media:
-            if hasattr(media, 'document'):
-                attributes = media.document.attributes[0]
-                if isinstance(attributes, DocumentAttributeAudio):
-                    song = (attributes.title, attributes.performer)
-                    if song not in songs:
-                        songs.append(song)
+        if media and hasattr(media, 'document'):
+            attributes = media.document.attributes[0]
+            if isinstance(attributes, DocumentAttributeAudio):
+                song = (attributes.title, attributes.performer)
+                if song not in songs:
+                    songs.append(song)
     with open(TELEGRAM_CACHE, 'w', encoding="utf-8") as f:
         json.dump(songs, f, ensure_ascii=False)
