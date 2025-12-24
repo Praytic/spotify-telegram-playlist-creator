@@ -35,7 +35,7 @@ if auth_manager:
             next_page = paginate + page_size
             items_in_playlist = spotify.playlist_items(playlist_id, fields='items(track(uri))', limit=page_size, offset=paginate)['items']
             for track in items_in_playlist:
-                tracks_in_playlist.append(track.uri)
+                tracks_in_playlist.append(track['track']['uri'])
 
         print(f"Got [{len(tracks_in_playlist)}] track URIs from playlist [{playlist_name}].")
 
