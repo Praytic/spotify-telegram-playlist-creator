@@ -1,6 +1,5 @@
-telethon
-colorama
-termcolor
-tele
-spotipy
-python-dotenv
+Telethon==1.38.1
+colorama==0.4.6
+termcolor==2.5.0
+spotipy==2.25.0
+python-dotenv==0.21.0
