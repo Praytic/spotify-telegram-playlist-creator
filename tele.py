@@ -30,7 +30,9 @@ with TelegramClient(name, api_id, api_hash) as client:
         if media and hasattr(media, 'document'):
             attributes = media.document.attributes[0]
             if isinstance(attributes, DocumentAttributeAudio):
-                song = (attributes.title, attributes.performer)
+                title = attributes.title if attributes.title else ""
+                performer = attributes.performer if attributes.performer else ""
+                song = (title, performer)
                 if song not in songs:
                     songs.append(song)
     with open(TELEGRAM_CACHE, 'w', encoding="utf-8") as f:

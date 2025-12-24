@@ -23,24 +23,26 @@ if auth_manager:
     tracks_missing = 0
 
     playlist_name = spotify.playlist(playlist_id, fields='name')['name']
-    total_items_in_playlist, page_size = spotify.playlist_items(playlist_id, fields='total,limit').values()
+    page_size = 100  # Use fixed page size for pagination
 
-    print(f"Total items in playlist [{playlist_name}]: {total_items_in_playlist}.")
+    print(f"Getting the list of track URIs from playlist [{playlist_name}].")
 
-    if total_items_in_playlist > 0:
-        print(f"Getting the list of track URIs by batches of [{page_size}].")
+    paginate = 0
+    while True:
+        print(f"Fetching track URIs starting from offset {paginate}...")
+        response = spotify.playlist_items(playlist_id, fields='items(track(uri))', limit=page_size, offset=paginate)
+        items_in_playlist = response['items']
 
-        paginate = 0
-        while paginate < total_items_in_playlist:
-            next_page = paginate + page_size
-            print(f"Fetching track URIs: {paginate + 1}-{min(next_page, total_items_in_playlist)} of {total_items_in_playlist}...")
-            items_in_playlist = spotify.playlist_items(playlist_id, fields='items(track(uri))', limit=page_size, offset=paginate)['items']
-            for track in items_in_playlist:
+        if not items_in_playlist:
+            break
+
+        for track in items_in_playlist:
+            if track['track'] and track['track']['uri']:
                 tracks_in_playlist.append(track['track']['uri'])
-            print(f"  Added {len(items_in_playlist)} URIs to list.")
-            paginate = next_page
+        print(f"  Added {len(items_in_playlist)} URIs to list.")
+        paginate += page_size
 
-        print(f"Got [{len(tracks_in_playlist)}] track URIs from playlist [{playlist_name}].")
+    print(f"Got [{len(tracks_in_playlist)}] track URIs from playlist [{playlist_name}].")
 
     if os.path.exists(SPOTIFY_CACHE):
         print(f"Spotify cache exists, getting track URIs from it.")
