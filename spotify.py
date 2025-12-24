@@ -33,9 +33,12 @@ if auth_manager:
         paginate = 0
         while paginate < total_items_in_playlist:
             next_page = paginate + page_size
+            print(f"Fetching track URIs: {paginate + 1}-{min(next_page, total_items_in_playlist)} of {total_items_in_playlist}...")
             items_in_playlist = spotify.playlist_items(playlist_id, fields='items(track(uri))', limit=page_size, offset=paginate)['items']
             for track in items_in_playlist:
                 tracks_in_playlist.append(track['track']['uri'])
+            print(f"  Added {len(items_in_playlist)} URIs to list.")
+            paginate = next_page
 
         print(f"Got [{len(tracks_in_playlist)}] track URIs from playlist [{playlist_name}].")
 
@@ -49,8 +52,9 @@ if auth_manager:
     else:
         print(f"Searching among [{len(tele.songs)}] tracks that were extracted from Telegram and don't exist in Spotify playlist.")
 
-        for song, artist in tele.songs:
+        for idx, (song, artist) in enumerate(tele.songs, 1):
             query = f"track:{song} artist:{artist}"
+            print(f"Searching [{idx}/{len(tele.songs)}]: {song} - {artist}")
             results = spotify.search(q=query, type="track", market="US", limit=1)['tracks']['items']
             if len(results) > 0:
                 first_result = results[0]
@@ -58,8 +62,12 @@ if auth_manager:
                 if uri not in tracks_in_playlist:
                     tracks.append(uri)
                     tracks_found += 1
+                    print(f"  Found and added to queue.")
+                else:
+                    print(f"  Found but already in playlist.")
             else:
                 tracks_missing += 1
+                print(f"  Not found on Spotify.")
 
         print(f"Finished searching for songs from Telegram export. "
               f"Stats: found {tracks_found} tracks, missing - {tracks_missing}, new to playlist - {len(tracks)}.")
