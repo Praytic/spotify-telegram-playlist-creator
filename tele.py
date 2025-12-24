@@ -47,6 +47,9 @@ async def main():
                     print(f"\n  Message ID: {message.id}")
                     print(f"  Document attributes: {message.audio.attributes}")
 
+                    title = ""
+                    performer = ""
+
                     # Iterate through all attributes to find DocumentAttributeAudio
                     for attr in message.audio.attributes:
                         if isinstance(attr, DocumentAttributeAudio):
@@ -64,21 +67,40 @@ async def main():
                                 if len(parts) == 2:
                                     performer = parts[0].strip()
                                     title = parts[1].strip()
-                                    print(f"    ✓ Parsed from title: {title} - {performer}")
-
-                            if not title or not performer:
-                                print(f"    ✗ Skipped: missing metadata - title: '{title}', performer: '{performer}'")
-                                continue
-                            song = (title, performer)
-                            if song not in songs:
-                                songs.append(song)
-                                count += 1
-                                print(f"    ✓ Extracted: {title} - {performer}")
-                            else:
-                                print(f"    = Duplicate: {title} - {performer}")
+                                    print(f"    ✓ Parsed from title metadata: {title} - {performer}")
 
                             # Break after processing the first DocumentAttributeAudio found
                             break
+
+                    # Fallback: If still missing metadata, try to parse from file_name
+                    if (not title or not performer) and hasattr(message.audio, 'attributes'):
+                        file_name = getattr(message.audio, 'file_name', None)
+                        if file_name:
+                            print(f"  File name: '{file_name}'")
+                            # Remove file extension
+                            name_without_ext = file_name.rsplit('.', 1)[0] if '.' in file_name else file_name
+
+                            # Try to parse "Artist - Title" format from filename
+                            if ' - ' in name_without_ext:
+                                parts = name_without_ext.split(' - ', 1)
+                                if len(parts) == 2:
+                                    if not performer:
+                                        performer = parts[0].strip()
+                                    if not title:
+                                        title = parts[1].strip()
+                                    print(f"    ✓ Parsed from file_name: {title} - {performer}")
+
+                    if not title or not performer:
+                        print(f"    ✗ Skipped: missing metadata - title: '{title}', performer: '{performer}'")
+                        continue
+
+                    song = (title, performer)
+                    if song not in songs:
+                        songs.append(song)
+                        count += 1
+                        print(f"    ✓ Extracted: {title} - {performer}")
+                    else:
+                        print(f"    = Duplicate: {title} - {performer}")
 
             if batch_count > 0:
                 print(f"  Processed batch: {batch_count} messages, {count} unique tracks total so far...")
