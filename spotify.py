@@ -153,5 +153,7 @@ if auth_manager:
         spotify.playlist_add_items(playlist_id, paged_tracks)
 
     print(f"Clearing local Spotify and Telegram cache.")
-    os.remove(SPOTIFY_CACHE)
-    os.remove(TELEGRAM_CACHE)
+    if os.path.exists(SPOTIFY_CACHE):
+        os.remove(SPOTIFY_CACHE)
+    if os.path.exists(TELEGRAM_CACHE):
+        os.remove(TELEGRAM_CACHE)
