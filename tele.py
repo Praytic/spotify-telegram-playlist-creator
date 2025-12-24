@@ -45,6 +45,8 @@ with TelegramClient(name, api_id, api_hash) as client:
                 if isinstance(attributes, DocumentAttributeAudio):
                     title = attributes.title if attributes.title else ""
                     performer = attributes.performer if attributes.performer else ""
+                    if not title or not performer:
+                        continue
                     song = (title, performer)
                     if song not in songs:
                         songs.append(song)
