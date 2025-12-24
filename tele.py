@@ -41,8 +41,17 @@ with TelegramClient(name, api_id, api_hash) as client:
 
             media = message.media
             if media and hasattr(media, 'document'):
+                # Print all document attributes for debugging
+                print(f"\n  Message ID: {message.id}")
+                print(f"  Document attributes: {media.document.attributes}")
+
                 attributes = media.document.attributes[0]
                 if isinstance(attributes, DocumentAttributeAudio):
+                    print(f"  Raw audio attributes:")
+                    print(f"    - title: '{attributes.title}'")
+                    print(f"    - performer: '{attributes.performer}'")
+                    print(f"    - duration: {attributes.duration if hasattr(attributes, 'duration') else 'N/A'}")
+
                     title = attributes.title if attributes.title else ""
                     performer = attributes.performer if attributes.performer else ""
 
@@ -52,10 +61,10 @@ with TelegramClient(name, api_id, api_hash) as client:
                         if len(parts) == 2:
                             performer = parts[0].strip()
                             title = parts[1].strip()
-                            print(f"    Parsed from title: {title} - {performer}")
+                            print(f"    ✓ Parsed from title: {title} - {performer}")
 
                     if not title or not performer:
-                        print(f"    Skipped: missing metadata - title: '{title}', performer: '{performer}'")
+                        print(f"    ✗ Skipped: missing metadata - title: '{title}', performer: '{performer}'")
                         continue
                     song = (title, performer)
                     if song not in songs:
@@ -63,7 +72,7 @@ with TelegramClient(name, api_id, api_hash) as client:
                         count += 1
                         print(f"    ✓ Extracted: {title} - {performer}")
                     else:
-                        print(f"    Duplicate: {title} - {performer}")
+                        print(f"    = Duplicate: {title} - {performer}")
 
         if batch_count > 0:
             print(f"  Processed batch: {batch_count} messages, {count} unique tracks total so far...")
