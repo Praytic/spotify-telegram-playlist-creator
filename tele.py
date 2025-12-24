@@ -4,7 +4,7 @@ import os
 
 from colorama import init
 from telethon import TelegramClient
-from telethon.tl.types import DocumentAttributeAudio, InputMessagesFilterMusic
+from telethon.tl.types import DocumentAttributeAudio, DocumentAttributeFilename, InputMessagesFilterMusic
 from dotenv import load_dotenv
 
 init()
@@ -49,8 +49,9 @@ async def main():
 
                     title = ""
                     performer = ""
+                    file_name = ""
 
-                    # Iterate through all attributes to find DocumentAttributeAudio
+                    # Iterate through all attributes to find DocumentAttributeAudio and DocumentAttributeFilename
                     for attr in message.audio.attributes:
                         if isinstance(attr, DocumentAttributeAudio):
                             print(f"  Raw audio attributes:")
@@ -61,34 +62,32 @@ async def main():
                             title = attr.title if attr.title else ""
                             performer = attr.performer if attr.performer else ""
 
-                            # If performer is empty but title contains " - ", try to split it
-                            if not performer and title and ' - ' in title:
-                                parts = title.split(' - ', 1)
-                                if len(parts) == 2:
-                                    performer = parts[0].strip()
-                                    title = parts[1].strip()
-                                    print(f"    ✓ Parsed from title metadata: {title} - {performer}")
+                        elif isinstance(attr, DocumentAttributeFilename):
+                            file_name = attr.file_name
+                            print(f"  File name: '{file_name}'")
 
-                            # Break after processing the first DocumentAttributeAudio found
-                            break
+                    # If performer is empty but title contains " - ", try to split it
+                    if not performer and title and ' - ' in title:
+                        parts = title.split(' - ', 1)
+                        if len(parts) == 2:
+                            performer = parts[0].strip()
+                            title = parts[1].strip()
+                            print(f"    ✓ Parsed from title metadata: {title} - {performer}")
 
                     # Fallback: If still missing metadata, try to parse from file_name
-                    if (not title or not performer) and hasattr(message.audio, 'attributes'):
-                        file_name = getattr(message.audio, 'file_name', None)
-                        if file_name:
-                            print(f"  File name: '{file_name}'")
-                            # Remove file extension
-                            name_without_ext = file_name.rsplit('.', 1)[0] if '.' in file_name else file_name
+                    if (not title or not performer) and file_name:
+                        # Remove file extension
+                        name_without_ext = file_name.rsplit('.', 1)[0] if '.' in file_name else file_name
 
-                            # Try to parse "Artist - Title" format from filename
-                            if ' - ' in name_without_ext:
-                                parts = name_without_ext.split(' - ', 1)
-                                if len(parts) == 2:
-                                    if not performer:
-                                        performer = parts[0].strip()
-                                    if not title:
-                                        title = parts[1].strip()
-                                    print(f"    ✓ Parsed from file_name: {title} - {performer}")
+                        # Try to parse "Artist - Title" format from filename
+                        if ' - ' in name_without_ext:
+                            parts = name_without_ext.split(' - ', 1)
+                            if len(parts) == 2:
+                                if not performer:
+                                    performer = parts[0].strip()
+                                if not title:
+                                    title = parts[1].strip()
+                                print(f"    ✓ Parsed from file_name: {title} - {performer}")
 
                     if not title or not performer:
                         print(f"    ✗ Skipped: missing metadata - title: '{title}', performer: '{performer}'")
