@@ -25,15 +25,37 @@ else:
 
 with TelegramClient(name, api_id, api_hash) as client:
     print(f"Extracting tracks from Telegram chat with ID [{chat}]")
-    for message in client.iter_messages(int(chat), filter=InputMessagesFilterMusic):
-        media = message.media
-        if media and hasattr(media, 'document'):
-            attributes = media.document.attributes[0]
-            if isinstance(attributes, DocumentAttributeAudio):
-                title = attributes.title if attributes.title else ""
-                performer = attributes.performer if attributes.performer else ""
-                song = (title, performer)
-                if song not in songs:
-                    songs.append(song)
+    count = 0
+    total_messages = 0
+    offset_id = 0
+    batch_size = 100
+
+    while True:
+        batch_count = 0
+        last_message_id = offset_id
+
+        for message in client.iter_messages(int(chat), filter=InputMessagesFilterMusic, limit=batch_size, offset_id=offset_id):
+            batch_count += 1
+            total_messages += 1
+            last_message_id = message.id
+
+            media = message.media
+            if media and hasattr(media, 'document'):
+                attributes = media.document.attributes[0]
+                if isinstance(attributes, DocumentAttributeAudio):
+                    title = attributes.title if attributes.title else ""
+                    performer = attributes.performer if attributes.performer else ""
+                    song = (title, performer)
+                    if song not in songs:
+                        songs.append(song)
+                        count += 1
+
+        if batch_count > 0:
+            print(f"  Processed batch: {batch_count} messages, {count} unique tracks total so far...")
+            offset_id = last_message_id
+        else:
+            break
+
+    print(f"Extracted {len(songs)} unique tracks from {total_messages} audio messages from Telegram.")
     with open(TELEGRAM_CACHE, 'w', encoding="utf-8") as f:
         json.dump(songs, f, ensure_ascii=False)
